@@ -1,0 +1,594 @@
+<title>Dominic 3D model project</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@1,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a star-catalogue page. Summary cards per star, then the sky, the 3D view from Earth,
+   distance and motion, and the full table, with colour marking where every value comes from. */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --fg: #10151d;
+  --fg-2: #4b5361;
+  --muted: #7c8492;
+  --line: #e2e5ea;
+  --axis: #c5cad2;
+  --gaia: #2a78d6;
+  --gaia-tint: #e4eefb;
+  --gaia-ink: #1c5cab;
+  --hip: #8a8a88;
+  --hip-tint: #efefed;
+  --star: #10151d;
+  --font-bayer: "EB Garamond", "Iowan Old Style", Georgia, serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f16; --surface: #121823; --fg: #eef1f6; --fg-2: #b6bfcc; --muted: #8a93a1;
+    --line: #232c39; --axis: #364152; --gaia: #3987e5; --gaia-tint: #14263f; --gaia-ink: #86b6ef;
+    --hip: #909090; --hip-tint: #1c222c; --star: #f2f5fa;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0f16; --surface: #121823; --fg: #eef1f6; --fg-2: #b6bfcc; --muted: #8a93a1;
+  --line: #232c39; --axis: #364152; --gaia: #3987e5; --gaia-tint: #14263f; --gaia-ink: #86b6ef;
+  --hip: #909090; --hip-tint: #1c222c; --star: #f2f5fa;
+  color-scheme: dark;
+}
+
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.55; }
+.wrap {
+  max-width: 1120px; margin: 0 auto; display: grid; gap: 48px;
+  padding-block: 40px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.bayer { font-family: var(--font-bayer); font-style: italic; font-weight: 500; }
+
+/* Header */
+.intro { display: grid; gap: 16px; }
+.eyebrow { font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: clamp(36px, 6.5vw, 60px); line-height: 1.05; font-weight: 600; letter-spacing: -0.015em; }
+h1 .bayer { font-size: 1.12em; letter-spacing: 0; }
+.lede { max-width: 70ch; color: var(--fg-2); font-size: 17px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 14px; color: var(--fg-2); }
+.key { display: inline-flex; align-items: center; gap: 8px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.swatch.gaia { background: var(--gaia); }
+.swatch.hip { background: var(--hip); }
+.swatch.none { box-shadow: inset 0 0 0 1.5px var(--axis); }
+
+/* Source pills */
+.pill { display: inline-block; font-size: 12px; font-weight: 500; line-height: 1.6; padding: 0 8px; border-radius: 999px; white-space: nowrap; }
+.pill.gaia { background: var(--gaia-tint); color: var(--gaia-ink); }
+.pill.hip { background: var(--hip-tint); color: var(--fg-2); }
+.pill.none { box-shadow: inset 0 0 0 1px var(--axis); color: var(--muted); }
+
+/* Star cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.card-head { display: flex; align-items: center; gap: 14px; }
+.card-head .letter { font-family: var(--font-bayer); font-style: italic; font-weight: 500; font-size: 64px; line-height: 0.9; width: 46px; text-align: center; }
+.card h3 { font-size: 20px; font-weight: 600; }
+.ids { font-family: var(--font-data); font-size: 12px; color: var(--muted); line-height: 1.5; }
+.facts { display: grid; gap: 12px; margin: 0; }
+.fact { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.fact dt { font-size: 13px; font-weight: 500; color: var(--fg-2); }
+.fact dd { margin: 0; }
+.fact .val { grid-column: 1 / -1; display: grid; gap: 2px; }
+.big { font-size: 21px; font-weight: 600; line-height: 1.25; }
+.big.missing { font-size: 18px; font-weight: 500; font-style: italic; color: var(--muted); }
+.sub { font-size: 13px; color: var(--fg-2); }
+.coord { font-family: var(--font-data); font-size: 14px; line-height: 1.55; }
+
+/* Sections and chart panels */
+.section { display: grid; gap: 16px; min-width: 0; }
+.section h2 { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+.section .about { color: var(--fg-2); max-width: 72ch; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel h3 { font-size: 18px; font-weight: 600; }
+.panel .about { font-size: 14px; color: var(--fg-2); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 16px; }
+.chart { width: 100%; min-width: 0; }
+#sky { height: clamp(380px, 78vw, 620px); }
+#space { height: clamp(400px, 72vw, 580px); }
+#distance { height: 290px; }
+#motion { height: 400px; }
+.hint { font-size: 13px; color: var(--muted); }
+.hint.fine { display: none; }
+@media (pointer: fine) { .hint.fine { display: block; } }
+.chart-fallback { font-size: 14px; color: var(--muted); }
+.control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 14px; color: var(--fg-2); }
+.control label { font-weight: 500; color: var(--fg); }
+.control input[type="range"] { flex: 1 1 220px; accent-color: var(--gaia); min-width: 0; }
+.control input[type="range"]:focus-visible { outline: 2px solid var(--gaia); outline-offset: 4px; }
+.control output { font-family: var(--font-data); font-variant-numeric: tabular-nums; color: var(--fg); min-width: 13ch; }
+
+/* Notes */
+.notes { display: grid; gap: 10px; margin: 0; padding-left: 20px; max-width: 78ch; }
+.notes li::marker { color: var(--muted); }
+
+/* Table */
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+table { border-collapse: separate; border-spacing: 3px; width: 100%; min-width: 780px; font-size: 14px; }
+th, td { padding: 10px 12px; text-align: left; vertical-align: top; border-radius: 6px; }
+thead th { font-size: 17px; font-weight: 600; padding-bottom: 12px; }
+thead th .s { font-weight: 400; }
+tbody th { font-weight: 500; width: 20%; }
+td.gaia { background: var(--gaia-tint); }
+td.hip { background: var(--hip-tint); }
+td.none { box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font-style: italic; }
+.v { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.s { display: block; font-size: 12px; color: var(--fg-2); margin-top: 3px; font-style: normal; }
+th .s { color: var(--muted); font-weight: 400; }
+.s .pill { margin-left: 6px; }
+tr.group th { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding-top: 18px; }
+
+footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; max-width: 90ch; border-top: 1px solid var(--line); padding-top: 20px; }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <p class="eyebrow">Dominic 3D model project · ESA Gaia Data Release 3</p>
+    <h1><span class="bayer">α, β</span> and <span class="bayer">γ</span> Trianguli</h1>
+    <p class="lede">Where the three stars of the Triangle are, how far they are from Earth and how they move, from ESA's Gaia space telescope (Data Release 3, June 2022). Gaia gives a complete record for γ Trianguli. For α and β Trianguli, two of the brightest stars Gaia observed, it publishes only a position. Their distances and motions here come from the earlier Hipparcos mission.</p>
+    <div class="legend" aria-label="Colour key">
+      <span class="key"><span class="swatch gaia"></span>Measured by Gaia DR3</span>
+      <span class="key"><span class="swatch hip"></span>Not in Gaia DR3, so the Hipparcos value is shown</span>
+      <span class="key"><span class="swatch none"></span>Not available</span>
+    </div>
+  </header>
+
+  <section class="cards" id="cards" aria-label="The three stars"></section>
+
+  <section class="section" aria-labelledby="sky-h">
+    <h2 id="sky-h">On the sky</h2>
+    <p class="about">Gaia positions at epoch 2016.0. East is to the left, as on a star chart, and dot size shows brightness. Move the slider to see where each star will appear as it drifts at its measured proper motion.</p>
+    <div class="panel">
+      <div class="control">
+        <label for="years">Years from now</label>
+        <input type="range" id="years" min="0" max="50000" step="1000" value="30000">
+        <output id="years-out" for="years">30,000 years</output>
+      </div>
+      <div class="chart" id="sky" role="img" aria-label="Sky chart of alpha, beta and gamma Trianguli with arrows showing their motion across the sky"></div>
+      <p class="hint">A straight-line projection of each star's proper motion. Hover over a star for its exact position.</p>
+      <p class="hint fine">Drag across the chart to zoom in, and double-click to zoom back out.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="space-h">
+    <h2 id="space-h">In space, relative to Earth</h2>
+    <p class="about">Earth sits at the centre and each line is our line of sight to a star. The Triangle we see is a trick of perspective: β Trianguli is twice as far away as α. Axes are in light years. X points to right ascension 0h on the celestial equator, Y to 6h, and Z to the north celestial pole.</p>
+    <div class="panel">
+      <div class="chart" id="space" role="img" aria-label="3D view of the three stars' positions in light years, with Earth at the origin"></div>
+      <p class="hint">Drag to rotate, scroll or pinch to zoom, and hover over a star for its X, Y and Z coordinates.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="dm-h">
+    <h2 id="dm-h">Distance and motion</h2>
+    <div class="two">
+      <div class="panel">
+        <h3>Distance from Earth</h3>
+        <p class="about">Distance = 1 / parallax. The open circle is the Hipparcos distance for γ Trianguli, shown for comparison with Gaia's.</p>
+        <div class="chart" id="distance" role="img" aria-label="Bar chart of distances: alpha 63.3, beta 126.9 and gamma 116.6 light years"></div>
+      </div>
+      <div class="panel">
+        <h3>Proper motion</h3>
+        <p class="about">Each arrow shows the direction and speed of a star's drift across the sky, in milliarcseconds per year. East is left and north is up.</p>
+        <div class="chart" id="motion" role="img" aria-label="Proper motion vectors of the three stars"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="notes-h">
+    <h2 id="notes-h">What's in the data, and what's missing</h2>
+    <ul class="notes" id="notes"></ul>
+  </section>
+
+  <section class="section" aria-labelledby="table-h">
+    <h2 id="table-h">The numbers</h2>
+    <p class="about">Every value on this page. Cell colour shows where each one comes from.</p>
+    <div class="table-wrap"><table id="table"></table></div>
+  </section>
+
+  <footer>
+    <p>Sources: ESA Gaia DR3 (gaiadr3.gaia_source), queried from the Gaia archive on 4 November 2026. Hipparcos values from the 2007 new reduction (van Leeuwen 2007), as hosted in the Gaia archive.</p>
+    <p>Distance = 1 / parallax. 1 parsec = 3.2616 light years. mas = milliarcsecond, 1/1000 of an arcsecond. Speed across the sky = 4.74 × proper motion (arcsec/yr) × distance (pc), in km/s. X, Y, Z are equatorial (ICRS) coordinates centred on the Sun, which is the same as Earth at this scale.</p>
+  </footer>
+</div>
+
+<script type="application/json" id="data">{
+ "stars": [
+  {
+   "letter": "α",
+   "name": "α Trianguli",
+   "short": "α Tri",
+   "hip": "8796",
+   "source_id": "299464296907113984",
+   "G": 3.305,
+   "ra": 28.27050196220287,
+   "dec": 29.577783036034866,
+   "ra_hms": "01h 53m 04.920s",
+   "dec_dms": "+29° 34′ 40.02″",
+   "ra_err": 0.19700646,
+   "dec_err": 0.1629722,
+   "astro_src": "hip",
+   "plx": 51.5,
+   "plx_err": 0.23,
+   "d_pc": 19.41747572815534,
+   "d_pc_err": 0.08671882364030539,
+   "d_ly": 63.33133547572815,
+   "d_ly_err": 0.2828389739692714,
+   "pmra": 10.82,
+   "pmra_err": 0.21,
+   "pmdec": -234.24,
+   "pmdec_err": 0.16,
+   "pm": 234.48976523507375,
+   "pa": 177.35527673887384,
+   "dir": "south",
+   "v_tan": 21.58430480395942,
+   "rv": null,
+   "rv_err": null,
+   "ruwe": null,
+   "xyz_pc": [
+    14.8728416590029,
+    7.9983258077295165,
+    9.584556792733688
+   ],
+   "xyz_ly": [
+    48.50872161606045,
+    26.087049731134858,
+    31.260643253779495
+   ]
+  },
+  {
+   "letter": "β",
+   "name": "β Trianguli",
+   "short": "β Tri",
+   "hip": "10064",
+   "source_id": "329384516560293248",
+   "G": 3.008,
+   "ra": 32.38675355041934,
+   "dec": 34.98711988193324,
+   "ra_hms": "02h 09m 32.821s",
+   "dec_dms": "+34° 59′ 13.63″",
+   "ra_err": 0.46405923,
+   "dec_err": 0.40762854,
+   "astro_src": "hip",
+   "plx": 25.71,
+   "plx_err": 0.34,
+   "d_pc": 38.895371450797356,
+   "d_pc_err": 0.5143689729004707,
+   "d_ly": 126.8597346168806,
+   "d_ly_err": 1.6776472100248698,
+   "pmra": 149.16,
+   "pmra_err": 0.35,
+   "pmdec": -39.1,
+   "pmdec_err": 0.35,
+   "pm": 154.19959662722857,
+   "pa": 104.68871698203829,
+   "dir": "east-south-east",
+   "v_tan": 28.431682684693826,
+   "rv": null,
+   "rv_err": null,
+   "ruwe": null,
+   "xyz_pc": [
+    26.909500998139613,
+    17.068562996827655,
+    22.302305565791865
+   ],
+   "xyz_ly": [
+    87.76705371267751,
+    55.670206795895645,
+    72.74039197697225
+   ]
+  },
+  {
+   "letter": "γ",
+   "name": "γ Trianguli",
+   "short": "γ Tri",
+   "hip": "10670",
+   "source_id": "326109689896765568",
+   "G": 4.016,
+   "ra": 34.3288558064912,
+   "dec": 33.846962660907664,
+   "ra_hms": "02h 17m 18.925s",
+   "dec_dms": "+33° 50′ 49.07″",
+   "ra_err": 0.34564814,
+   "dec_err": 0.30987236,
+   "astro_src": "gaia",
+   "plx": 27.979464525783225,
+   "plx_err": 0.46083832,
+   "d_pc": 35.740498145648736,
+   "d_pc_err": 0.588667131432274,
+   "d_ly": 116.56991412378359,
+   "d_ly_err": 1.9199753925900032,
+   "pmra": 45.25343798552453,
+   "pmra_err": 0.3256525,
+   "pmdec": -52.68543639346999,
+   "pmdec_err": 0.36225745,
+   "pm": 69.4523495461463,
+   "pa": 139.339518984468,
+   "dir": "south-east",
+   "v_tan": 11.767086505520027,
+   "rv": 5.113197,
+   "rv_err": 1.7381403,
+   "ruwe": 1.6677171,
+   "xyz_pc": [
+    24.51305487138165,
+    16.739768757700297,
+    19.906619263714116
+   ],
+   "xyz_ly": [
+    79.9508918321118,
+    54.59782341547158,
+    64.92670831306037
+   ]
+  }
+ ],
+ "hip_gamma": {
+  "plx": 29.04,
+  "plx_err": 0.25,
+  "d_ly": 112.31280223829201,
+  "d_ly_err": 0.966880184558299
+ }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const S = D.stars;
+const SRC = { gaia: 'Gaia DR3', hip: 'Hipparcos', none: 'Not in Gaia DR3' };
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const fix = (v, d) => v.toFixed(d);
+const signed = (v, d) => (v < 0 ? '−' : '+') + Math.abs(v).toFixed(d);
+const pill = src => `<span class="pill ${src}">${SRC[src]}</span>`;
+const srcColour = s => css(s.astro_src === 'gaia' ? '--gaia' : '--hip');
+const dotSize = (s, base, k) => base + k * Math.pow(10, -0.4 * (s.G - 3));
+
+/* ---------- Cards ---------- */
+function fact(label, src, body) {
+  return `<div class="fact"><dt>${label}</dt><dd>${pill(src)}</dd><dd class="val">${body}</dd></div>`;
+}
+function card(s) {
+  const a = s.astro_src;
+  const rv = s.rv == null
+    ? `<span class="big missing">Not measured</span><span class="sub">Binary star, so it changes over its orbit</span>`
+    : `<span class="big">${signed(s.rv, 1)} km/s</span><span class="sub">± ${fix(s.rv_err, 1)} km/s · moving away from us</span>`;
+  return `<article class="card">
+    <div class="card-head">
+      <span class="letter" aria-hidden="true">${s.letter}</span>
+      <div><h3>${s.name}</h3><p class="ids">Gaia DR3 ${s.source_id}<br>HIP ${s.hip} · G ${fix(s.G, 2)} mag</p></div>
+    </div>
+    <dl class="facts">
+      ${fact('Position (epoch 2016.0)', 'gaia', `<span class="coord">RA ${s.ra_hms}<br>Dec ${s.dec_dms}</span>`)}
+      ${fact('Distance', a, `<span class="big">${fix(s.d_ly, 1)} light years</span><span class="sub">± ${fix(s.d_ly_err, 1)} ly · ${fix(s.d_pc, 2)} parsecs</span>`)}
+      ${fact('Proper motion', a, `<span class="big">${fix(s.pm, 1)} mas/yr</span><span class="sub">towards the ${s.dir} · about ${fix(s.v_tan, 0)} km/s across the sky</span>`)}
+      ${fact('Radial velocity', s.rv == null ? 'none' : 'gaia', rv)}
+    </dl>
+  </article>`;
+}
+document.getElementById('cards').innerHTML = S.map(card).join('');
+
+/* ---------- Notes ---------- */
+const gamma = S.find(s => s.letter === 'γ');
+const notes = [
+  `γ Trianguli has a complete Gaia record: position, parallax, proper motion and radial velocity (${signed(gamma.rv, 1)} km/s, so it is moving away from us).`,
+  `α and β Trianguli are two of the brightest stars Gaia observed. For them DR3 publishes a position only, with no parallax, proper motion or radial velocity. Their distances and motions here come from Hipparcos (ESA, observed 1989–93, re-analysed in 2007).`,
+  `Neither α nor β Trianguli has a Gaia radial velocity. Both are binary stars, so their speed towards or away from us changes as they orbit.`,
+  `γ Trianguli's Gaia fit is flagged as slightly uncertain (RUWE ${fix(gamma.ruwe, 2)}; values above 1.4 are usually treated with caution). Hipparcos puts it at ${fix(D.hip_gamma.d_ly, 1)} light years, against Gaia's ${fix(gamma.d_ly, 1)}.`,
+  `For the 3D model, the X, Y, Z coordinates are centred on the Sun. Earth is never more than 0.000016 light years from the Sun, so at this scale the two are the same point. Each star's uncertainty lies almost entirely along our line of sight, at the ± distance shown.`,
+];
+document.getElementById('notes').innerHTML = notes.map(n => `<li>${n}</li>`).join('');
+
+/* ---------- Table ---------- */
+const ROWS = [
+  ['Gaia DR3 source ID', '', s => ['gaia', s.source_id, `HIP ${s.hip}`]],
+  ['Right ascension', 'ICRS, epoch 2016.0', s => ['gaia', s.ra_hms, `${fix(s.ra, 6)}° ± ${fix(s.ra_err, 2)} mas`]],
+  ['Declination', 'ICRS, epoch 2016.0', s => ['gaia', s.dec_dms, `${signed(s.dec, 6)}° ± ${fix(s.dec_err, 2)} mas`]],
+  ['Parallax', '', s => [s.astro_src, `${fix(s.plx, 2)} ± ${fix(s.plx_err, 2)} mas`, '']],
+  ['Distance', '1 / parallax', s => [s.astro_src, `${fix(s.d_ly, 1)} ± ${fix(s.d_ly_err, 1)} ly`, `${fix(s.d_pc, 2)} ± ${fix(s.d_pc_err, 2)} pc`]],
+  ['Proper motion, RA', 'μα cos δ', s => [s.astro_src, `${signed(s.pmra, 2)} ± ${fix(s.pmra_err, 2)} mas/yr`, '']],
+  ['Proper motion, Dec', 'μδ', s => [s.astro_src, `${signed(s.pmdec, 2)} ± ${fix(s.pmdec_err, 2)} mas/yr`, '']],
+  ['Radial velocity', 'along our line of sight', s => s.rv == null
+    ? ['none', 'Not in Gaia DR3', 'Binary star, so it varies']
+    : ['gaia', `${signed(s.rv, 1)} ± ${fix(s.rv_err, 1)} km/s`, 'Moving away from us']],
+  ['group', '3D position from Earth, for the model'],
+  ['X', 'towards RA 0h, Dec 0°', s => [s.astro_src, `${signed(s.xyz_ly[0], 2)} ly`, `${signed(s.xyz_pc[0], 3)} pc`]],
+  ['Y', 'towards RA 6h, Dec 0°', s => [s.astro_src, `${signed(s.xyz_ly[1], 2)} ly`, `${signed(s.xyz_pc[1], 3)} pc`]],
+  ['Z', 'towards the north celestial pole', s => [s.astro_src, `${signed(s.xyz_ly[2], 2)} ly`, `${signed(s.xyz_pc[2], 3)} pc`]],
+];
+function tableHTML() {
+  const head = `<thead><tr><th scope="col"><span class="sr-only"></span></th>${S.map(s =>
+    `<th scope="col"><span class="bayer">${s.letter}</span> Trianguli<span class="s">Gaia G magnitude ${fix(s.G, 2)}</span></th>`).join('')}</tr></thead>`;
+  const body = ROWS.map(([label, sub, cell]) => {
+    if (label === 'group') return `<tr class="group"><th colspan="4" scope="colgroup">${sub}</th></tr>`;
+    const cells = S.map(s => {
+      const [src, main, note] = cell(s);
+      const tag = src === 'hip' ? pill('hip') : '';
+      const detail = note || tag ? `<span class="s">${note}${tag}</span>` : '';
+      return `<td class="${src}"><span class="${src === 'none' ? '' : 'v'}">${main}</span>${detail}</td>`;
+    }).join('');
+    return `<tr><th scope="row">${label}${sub ? `<span class="s">${sub}</span>` : ''}</th>${cells}</tr>`;
+  }).join('');
+  return head + `<tbody>${body}</tbody>`;
+}
+document.getElementById('table').innerHTML = tableHTML();
+
+/* ---------- Charts ---------- */
+const CONFIG = { displayModeBar: false, responsive: true };
+const FINE = window.matchMedia('(pointer: fine)').matches;
+const raHM = deg => { const h = deg / 15, hh = Math.floor(h), m = (h - hh) * 60, mm = Math.floor(m), ss = Math.round((m - mm) * 60);
+  return `${String(hh).padStart(2, '0')}h ${String(mm).padStart(2, '0')}m ${String(ss).padStart(2, '0')}s`; };
+const decDM = deg => { const a = Math.abs(deg), dd = Math.floor(a), mm = Math.round((a - dd) * 60);
+  return `${deg < 0 ? '−' : '+'}${dd}° ${String(mm).padStart(2, '0')}′`; };
+
+function base(extra) {
+  return Object.assign({
+    paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+    font: { family: css('--font-body'), size: 13, color: css('--fg-2') },
+    margin: { l: 60, r: 16, t: 8, b: 52 },
+    hoverlabel: { bgcolor: css('--surface'), bordercolor: css('--axis'),
+                  font: { family: css('--font-body'), size: 13, color: css('--fg') } },
+    showlegend: false,
+  }, extra);
+}
+function axis(extra) {
+  return Object.assign({
+    gridcolor: css('--line'), linecolor: css('--axis'), zeroline: false, fixedrange: true,
+    tickfont: { color: css('--fg-2'), size: 12 }, title: { font: { color: css('--fg-2'), size: 13 }, standoff: 12 },
+  }, extra);
+}
+
+const yearsInput = document.getElementById('years');
+const yearsOut = document.getElementById('years-out');
+
+function drawSky() {
+  const years = Number(yearsInput.value);
+  yearsOut.textContent = `${years.toLocaleString('en-GB')} years`;
+  const deg = years / 3.6e6;
+  const fut = S.map(s => [s.ra + s.pmra * deg / Math.cos(s.dec * Math.PI / 180), s.dec + s.pmdec * deg]);
+  const loop = [0, 1, 2, 0];
+  const traces = [{
+    x: loop.map(i => S[i].ra), y: loop.map(i => S[i].dec), mode: 'lines',
+    line: { color: css('--axis'), width: 1.5 }, hoverinfo: 'skip',
+  }];
+  if (years > 0) {
+    traces.push({
+      x: loop.map(i => fut[i][0]), y: loop.map(i => fut[i][1]), mode: 'lines',
+      line: { color: css('--muted'), width: 1, dash: 'dot' }, hoverinfo: 'skip',
+    });
+    traces.push({
+      x: fut.map(f => f[0]), y: fut.map(f => f[1]), mode: 'markers',
+      marker: { size: 10, color: css('--surface'), line: { color: S.map(srcColour), width: 2 } },
+      customdata: S.map((s, i) => [s.name, years.toLocaleString('en-GB'), raHM(fut[i][0]), decDM(fut[i][1]), SRC[s.astro_src]]),
+      hovertemplate: '<b>%{customdata[0]} in %{customdata[1]} years</b><br>RA %{customdata[2]}<br>Dec %{customdata[3]}<br>Motion from %{customdata[4]}<extra></extra>',
+    });
+  }
+  traces.push({
+    x: S.map(s => s.ra), y: S.map(s => s.dec), mode: 'markers+text',
+    text: S.map(s => `<b>${s.short}</b>`), textposition: ['bottom left', 'middle right', 'top left'],
+    textfont: { family: css('--font-body'), size: 14, color: css('--fg') },
+    marker: { size: S.map(s => dotSize(s, 12, 14)), color: css('--star'), line: { color: css('--surface'), width: 2 } },
+    customdata: S.map(s => [s.name, s.ra_hms, s.dec_dms, fix(s.G, 2), fix(s.d_ly, 1), SRC[s.astro_src]]),
+    hovertemplate: '<b>%{customdata[0]}</b><br>RA %{customdata[1]}<br>Dec %{customdata[2]}<br>Gaia G magnitude %{customdata[3]}<br>%{customdata[4]} light years away (%{customdata[5]})<extra></extra>',
+  });
+  const annotations = years > 0 ? S.map((s, i) => ({
+    x: fut[i][0], y: fut[i][1], ax: s.ra, ay: s.dec, xref: 'x', yref: 'y', axref: 'x', ayref: 'y',
+    showarrow: true, arrowhead: 2, arrowsize: 1.1, arrowwidth: 2.2, arrowcolor: srcColour(s), standoff: 6, text: '',
+  })) : [];
+  const ticks = [[1, 50], [2, 0], [2, 10], [2, 20]];
+  Plotly.react('sky', traces, base({
+    annotations, uirevision: 'sky', dragmode: FINE ? 'zoom' : false,
+    xaxis: axis({ range: [36.4, 27.0], fixedrange: !FINE, scaleanchor: 'y', scaleratio: Math.cos(31 * Math.PI / 180),
+                  tickvals: ticks.map(([h, m]) => 15 * (h + m / 60)), ticktext: ticks.map(([h, m]) => `${h}h ${String(m).padStart(2, '0')}m`),
+                  title: { text: 'Right ascension', font: { color: css('--fg-2'), size: 13 }, standoff: 12 } }),
+    yaxis: axis({ range: [25.6, 36.4], fixedrange: !FINE, dtick: 2, tickprefix: '+', ticksuffix: '°',
+                  title: { text: 'Declination', font: { color: css('--fg-2'), size: 13 }, standoff: 12 } }),
+  }), CONFIG);
+}
+
+function drawSpace() {
+  const loop = [0, 1, 2, 0];
+  const traces = S.map(s => ({
+    type: 'scatter3d', mode: 'lines', x: [0, s.xyz_ly[0]], y: [0, s.xyz_ly[1]], z: [0, s.xyz_ly[2]],
+    line: { color: srcColour(s), width: 5 }, hoverinfo: 'skip',
+  }));
+  traces.push({
+    type: 'scatter3d', mode: 'lines', x: loop.map(i => S[i].xyz_ly[0]), y: loop.map(i => S[i].xyz_ly[1]), z: loop.map(i => S[i].xyz_ly[2]),
+    line: { color: css('--axis'), width: 3 }, hoverinfo: 'skip',
+  });
+  traces.push({
+    type: 'scatter3d', mode: 'markers+text', x: S.map(s => s.xyz_ly[0]), y: S.map(s => s.xyz_ly[1]), z: S.map(s => s.xyz_ly[2]),
+    text: S.map(s => `<b>${s.short}</b>`), textposition: 'top center', textfont: { family: css('--font-body'), size: 14, color: css('--fg') },
+    marker: { size: S.map(s => dotSize(s, 5, 6)), color: css('--star'), line: { color: css('--surface'), width: 1 } },
+    customdata: S.map(s => [s.name, fix(s.d_ly, 1), signed(s.xyz_ly[0], 1), signed(s.xyz_ly[1], 1), signed(s.xyz_ly[2], 1), SRC[s.astro_src]]),
+    hovertemplate: '<b>%{customdata[0]}</b><br>%{customdata[1]} light years from Earth (%{customdata[5]})<br>X %{customdata[2]} · Y %{customdata[3]} · Z %{customdata[4]} ly<extra></extra>',
+  });
+  traces.push({
+    type: 'scatter3d', mode: 'markers+text', x: [0], y: [0], z: [0], text: ['<b>Earth</b>'], textposition: 'bottom center',
+    textfont: { family: css('--font-body'), size: 14, color: css('--fg') },
+    marker: { size: 7, symbol: 'diamond', color: css('--fg-2') },
+    hovertemplate: '<b>Earth and the Sun</b><br>Centre of the X, Y, Z coordinates<extra></extra>',
+  });
+  const ax3 = title => ({
+    title: { text: title, font: { size: 12, color: css('--fg-2') } }, showbackground: false,
+    gridcolor: css('--line'), zerolinecolor: css('--axis'), linecolor: css('--axis'),
+    tickfont: { size: 11, color: css('--muted') },
+  });
+  Plotly.react('space', traces, base({
+    uirevision: 'space', margin: { l: 0, r: 0, t: 0, b: 0 },
+    scene: {
+      xaxis: ax3('X (ly), towards RA 0h'), yaxis: ax3('Y (ly), towards RA 6h'), zaxis: ax3('Z (ly), towards north pole'),
+      aspectmode: 'data', camera: { eye: { x: 0.35, y: -2.0, z: 0.55 }, center: { x: 0, y: 0, z: -0.05 } },
+    },
+  }), CONFIG);
+}
+
+function drawDistance() {
+  const y = S.map(s => s.short);
+  const g = D.hip_gamma;
+  const traces = [{
+    type: 'bar', orientation: 'h', x: S.map(s => s.d_ly), y, width: 0.4,
+    marker: { color: S.map(srcColour), cornerradius: 4 },
+    error_x: { type: 'data', array: S.map(s => s.d_ly_err), color: css('--fg-2'), thickness: 1.5, width: 5 },
+    text: S.map(s => ` ${fix(s.d_ly, 1)} ly`), textposition: 'outside', cliponaxis: false,
+    textfont: { family: css('--font-body'), size: 13, color: css('--fg') },
+    customdata: S.map(s => [s.name, fix(s.d_ly, 1), fix(s.d_ly_err, 1), fix(s.d_pc, 2), fix(s.plx, 2), fix(s.plx_err, 2), SRC[s.astro_src]]),
+    hovertemplate: '<b>%{customdata[0]}</b><br>%{customdata[1]} ± %{customdata[2]} light years (%{customdata[3]} pc)<br>Parallax %{customdata[4]} ± %{customdata[5]} mas<br>Source: %{customdata[6]}<extra></extra>',
+  }, {
+    type: 'scatter', mode: 'markers', x: [g.d_ly], y: [gamma.short],
+    marker: { symbol: 'circle-open', size: 14, color: css('--hip'), line: { width: 2.5 } },
+    hovertemplate: `<b>γ Trianguli, Hipparcos value</b><br>${fix(g.d_ly, 1)} ± ${fix(g.d_ly_err, 1)} light years<br>Parallax ${fix(g.plx, 2)} ± ${fix(g.plx_err, 2)} mas<extra></extra>`,
+  }];
+  Plotly.react('distance', traces, base({
+    margin: { l: 56, r: 24, t: 4, b: 52 }, bargap: 0.5,
+    xaxis: axis({ range: [0, 152], dtick: 25, title: { text: 'Light years from Earth', font: { color: css('--fg-2'), size: 13 }, standoff: 12 } }),
+    yaxis: axis({ autorange: 'reversed', showgrid: false, tickfont: { color: css('--fg'), size: 14 }, ticks: '', ticklen: 0 }),
+  }), CONFIG);
+}
+
+function drawMotion() {
+  const traces = [{
+    x: S.map(s => s.pmra), y: S.map(s => s.pmdec), mode: 'markers+text',
+    text: S.map(s => `<b>${s.short}</b>`), textposition: ['middle right', 'top center', 'bottom left'],
+    textfont: { family: css('--font-body'), size: 14, color: css('--fg') },
+    marker: { size: 9, color: S.map(srcColour), line: { color: css('--surface'), width: 2 } },
+    customdata: S.map(s => [s.name, signed(s.pmra, 2), signed(s.pmdec, 2), fix(s.pm, 1), s.dir, fix(s.pa, 0), fix(s.v_tan, 1), SRC[s.astro_src]]),
+    hovertemplate: '<b>%{customdata[0]}</b><br>μα cos δ %{customdata[1]} mas/yr<br>μδ %{customdata[2]} mas/yr<br>Total %{customdata[3]} mas/yr towards the %{customdata[4]} (PA %{customdata[5]}°)<br>About %{customdata[6]} km/s across the sky<br>Source: %{customdata[7]}<extra></extra>',
+  }, {
+    x: [0], y: [0], mode: 'markers', marker: { size: 7, color: css('--fg-2') }, hoverinfo: 'skip',
+  }];
+  const annotations = S.map(s => ({
+    x: s.pmra, y: s.pmdec, ax: 0, ay: 0, xref: 'x', yref: 'y', axref: 'x', ayref: 'y',
+    showarrow: true, arrowhead: 2, arrowsize: 1.1, arrowwidth: 2.2, arrowcolor: srcColour(s), standoff: 5, text: '',
+  }));
+  Plotly.react('motion', traces, base({
+    annotations, margin: { l: 64, r: 16, t: 8, b: 52 },
+    xaxis: axis({ range: [205, -70], scaleanchor: 'y', scaleratio: 1, constrain: 'domain', constraintoward: 'center',
+                  zeroline: true, zerolinecolor: css('--axis'), dtick: 50,
+                  title: { text: '← East     μα cos δ (mas/yr)     West →', font: { color: css('--fg-2'), size: 13 }, standoff: 12 } }),
+    yaxis: axis({ range: [-265, 45], zeroline: true, zerolinecolor: css('--axis'), dtick: 50,
+                  title: { text: 'μδ (mas/yr), north is up', font: { color: css('--fg-2'), size: 13 }, standoff: 8 } }),
+  }), CONFIG);
+}
+
+function drawAll() {
+  if (!window.Plotly) {
+    document.querySelectorAll('.chart').forEach(el => {
+      el.style.height = 'auto';
+      el.innerHTML = '<p class="chart-fallback">This chart could not load. The same values are in the table below.</p>';
+    });
+    return;
+  }
+  drawSky(); drawSpace(); drawDistance(); drawMotion();
+}
+yearsInput.addEventListener('input', () => window.Plotly && drawSky());
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawAll);
+new MutationObserver(drawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+drawAll();
+</script>
